@@ -1,0 +1,10 @@
+[package]
+name = "binding_powers"
+version = "0.1.0"
+authors = ["Brian Shu <littlebubu.shu@gmail.com>"]
+edition = "2018"
+
+[workspace]
+
+[dependencies]
+binding_powers_impl = { path = "binding_powers_impl" }
