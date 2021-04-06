@@ -1,83 +1,67 @@
-use proc_macro::{Delimiter, Group, Punct, Spacing, Span, TokenStream, TokenTree};
-use std::{cmp::Ordering, collections::BTreeSet};
+use proc_macro::{Span, TokenStream};
 use std::hash::{Hash, Hasher};
+use std::{cmp::Ordering, collections::BTreeSet};
 
 type Result<T> = std::result::Result<T, String>;
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn __deduplicate(token_stream: TokenStream) -> TokenStream {
-    try_deduplicate(token_stream)
+pub fn __deduplicate_enum(token_stream: TokenStream) -> TokenStream {
+    try_deduplicate_enum(token_stream)
         .unwrap_or_else(|msg| parse_ts(&format!("compile_error!({:?})", msg)))
 }
 
 #[derive(Debug)]
-struct Ident {
+struct Hashable {
     ident: String,
     span: Span,
 }
 
-impl Hash for Ident {
+impl Hash for Hashable {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.ident.hash(state);
     }
 }
 
-impl PartialEq for Ident {
+impl PartialEq for Hashable {
     fn eq(&self, other: &Self) -> bool {
         self.ident == other.ident
     }
 }
 
-impl Eq for Ident {}
+impl Eq for Hashable {}
 
-impl Into<proc_macro::Ident> for Ident {
+impl Into<proc_macro::Ident> for Hashable {
     fn into(self) -> proc_macro::Ident {
         proc_macro::Ident::new(&self.ident, self.span)
     }
 }
 
-impl PartialOrd for Ident {
+impl PartialOrd for Hashable {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.ident.partial_cmp(&other.ident)
     }
 }
 
-impl Ord for Ident {
+impl Ord for Hashable {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).unwrap()
     }
 }
 
-fn try_deduplicate(token_stream: TokenStream) -> Result<TokenStream> {
-    // let (cmd, literal) = {
-    //     let mut iter = token_stream.into_iter();
-    //     let cmd = iter.next().unwrap();
-    //     let literal = iter.next().unwrap();
-    //     assert!(iter.next().is_none());
-    //     (cmd, literal)
-    // };
-
-    // return Err(format!("res = {:#?}", token_stream.to_string()));
+fn try_deduplicate_enum(token_stream: TokenStream) -> Result<TokenStream> {
     let name = token_stream.clone().into_iter().next().unwrap();
 
     let deduplicated = token_stream
         .into_iter()
         .skip(1)
         .map(|token| {
-            Ident {
+            Hashable {
                 ident: token.to_string(),
                 span: token.span(),
             }
-            // TokenTree::Ident(it) => Some(Ident {
-            //     ident: it.to_string(),
-            //     span: it.span(),
-            // }),
-            // _ => None,
         })
         .collect::<BTreeSet<_>>();
-
-    // return Err(format!("res = {:#?}", deduplicated));
 
     let mut res = TokenStream::new();
 
@@ -86,26 +70,16 @@ fn try_deduplicate(token_stream: TokenStream) -> Result<TokenStream> {
     res.extend(parse_ts("enum"));
     res.extend(Some(name));
 
-    // res.extend(parse_ts("{"));
-
-    let mut variants = TokenStream::new();
     let mut s = String::from("{");
     for it in deduplicated {
         s.push_str(&it.ident);
         s.push(',');
-        variants.extend(parse_ts(&it.ident));
-        variants.extend(Some(TokenTree::Punct(Punct::new(',', Spacing::Alone))))
     }
     s.push_str("__LAST");
     s.push('}');
+
     res.extend(parse_ts(&s));
-    // return Err(format!("res = {}", variants.to_string()));
 
-    // let variants = Group::new(Delimiter::Brace, variants);
-
-    // res.extend(variants.stream());
-
-    // return Err(format!("res = {}", res.to_string()));
     Ok(res)
 }
 

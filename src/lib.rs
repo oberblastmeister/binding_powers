@@ -1,4 +1,4 @@
-pub use binding_powers_impl::__deduplicate;
+pub use binding_powers_impl::__deduplicate_enum;
 
 pub trait Operator {
     fn to_id(&self) -> usize;
@@ -114,7 +114,7 @@ macro_rules! precedences {
             use $crate::Operator;
             use $crate::BindingPowers;
 
-            $crate::__deduplicate!{ $name $($variant)+ }
+            $crate::__deduplicate_enum!{ $name $($variant)+ }
 
             const __BINDING_POWERS: BindingPowers<{$name::__LAST as usize}>= BindingPowers::new(&[
                 $(($name::$variant as usize, $crate::precedences!($($stuff)+))),+
